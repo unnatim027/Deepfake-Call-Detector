@@ -1,21 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
+
+// Replace the URL below with your ACTUAL Render Backend URL
+const BACKEND_URL = "https://deepfake-call-detector.onrender.com"; 
 
 function App() {
   const [darkMode, setDarkMode] = useState(true);
+  const [serverStatus, setServerStatus] = useState('connecting'); // 'online', 'offline', 'connecting'
 
+  // Effect to apply dark/light theme
   useEffect(() => {
-    if (darkMode) {
-      document.body.classList.add('dark');
-      document.body.classList.remove('light');
-    } else {
-      document.body.classList.add('light');
-      document.body.classList.remove('dark');
-    }
+    document.body.classList.toggle('dark', darkMode);
+    document.body.classList.toggle('light', !darkMode);
   }, [darkMode]);
+
+  // Health check to wake up the Render backend
+  useEffect(() => {
+    const wakeServer = async () => {
+      try {
+        // Most Render backends have a /health or / endpoint
+        const response = await fetch(`${BACKEND_URL}/health`);
+        if (response.ok) {
+          setServerStatus('online');
+        } else {
+          setServerStatus('offline');
+        }
+      } catch (error) {
+        console.error("Backend connection failed:", error);
+        setServerStatus('offline');
+      }
+    };
+
+    wakeServer();
+  }, []);
 
   return (
     <div className="app-container">
@@ -29,13 +49,28 @@ function App() {
             </div>
             <span className="logo-text">VoiceGuard AI</span>
           </div>
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="theme-toggle"
-            aria-label="Toggle theme"
-          >
-            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+
+          <div className="nav-right">
+            {/* Server Status Badge */}
+            <div className={`status-indicator ${serverStatus}`}>
+              {serverStatus === 'online' ? <Wifi size={16} /> : 
+               serverStatus === 'connecting' ? <Loader2 size={16} className="animate-spin" /> : 
+               <WifiOff size={16} />}
+              <span>
+                {serverStatus === 'online' ? 'System Ready' : 
+                 serverStatus === 'connecting' ? 'Waking Server...' : 
+                 'Server Offline'}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="theme-toggle"
+              aria-label="Toggle theme"
+            >
+              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -46,16 +81,17 @@ function App() {
           transition={{ duration: 0.5 }}
           className="hero-section"
         >
-          <div className="badge">Powered by Deep Learning</div>
+          <div className="badge">AI-Powered Security</div>
           <h1 className="hero-title">
             Deepfake Voice <br className="break-mobile" /> Call Detector
           </h1>
           <p className="hero-subtitle">
-            Upload an audio snippet or record directly from your microphone to determine if the voice is genuine or AI-generated in seconds.
+            Upload audio or record from your microphone. Our deep learning model analyzes frequency anomalies to detect AI manipulation.
           </p>
         </motion.div>
 
-        <Dashboard />
+        {/* Pass the backend URL to Dashboard as a prop */}
+        <Dashboard apiUrl={BACKEND_URL} isServerReady={serverStatus === 'online'} />
       </main>
     </div>
   );
