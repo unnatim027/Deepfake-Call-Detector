@@ -93,23 +93,24 @@ async def predict(file: UploadFile = File(...)):
                 
                 if preds.shape[-1] == 1:
                     pred_val = float(preds[0][0])
-                    prediction = "real" if pred_val >= 0.5 else "fake"
+                    # Fix: 1 = Fake (Deepfake), 0 = Real Voice
+                    prediction = "fake" if pred_val >= 0.5 else "real"
                     confidence = pred_val * 100 if pred_val >= 0.5 else (1 - pred_val) * 100
                 elif preds.shape[-1] == 2:
-                    fake_prob = float(preds[0][0])
-                    real_prob = float(preds[0][1])
-                    if real_prob > fake_prob:
-                        prediction = "real"
-                        confidence = real_prob * 100
-                    else:
+                    fake_prob = float(preds[0][1])  # Assuming class 1 is Fake
+                    real_prob = float(preds[0][0])  # Assuming class 0 is Real
+                    if fake_prob >= 0.5:
                         prediction = "fake"
                         confidence = fake_prob * 100
+                    else:
+                        prediction = "real"
+                        confidence = real_prob * 100
                 else:
                     raise ValueError(f"Unexpected model output shape: {preds.shape}")
             except Exception as e:
-                import random
-                prediction = random.choice(["real", "fake"])
-                confidence = random.uniform(85.0, 99.9)
+                print(f"⚠️ KERAS PREDICTION CRASHED: {e}")
+                prediction = f"fake (CRASH: {str(e)})"
+                confidence = 0.0
         else:
             # Full Simulation mode without needing any heavy processing libraries
             import asyncio
